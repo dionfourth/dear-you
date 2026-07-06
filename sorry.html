@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ถึง บีม</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    * { font-family: 'Kanit', sans-serif; }
+    body {
+      background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 50%, #fef3c7 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .floating-heart {
+      position: absolute;
+      font-size: 1.1rem;
+      opacity: 0.12;
+      animation: float 12s ease-in-out infinite;
+      pointer-events: none;
+      filter: blur(0.5px);
+    }
+    @keyframes float {
+      0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+      25% { opacity: 0.15; }
+      75% { opacity: 0.15; }
+      100% { transform: translateY(-10vh) rotate(30deg); opacity: 0; }
+    }
+    #card {
+      transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1), filter 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: transform, opacity, filter;
+    }
+    #card.fade-out {
+      opacity: 0;
+      filter: blur(6px);
+    }
+    #card.slide-next {
+      transform: translateX(-40px) scale(0.95);
+    }
+    #card.slide-prev {
+      transform: translateX(40px) scale(0.95);
+    }
+    .card-enter {
+      animation: cardIn 0.5s ease-out forwards;
+    }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(20px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .btn-choice {
+      transition: all 0.2s ease;
+    }
+    .btn-choice:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(244, 63, 94, 0.2);
+    }
+    .progress-dot {
+      transition: all 0.3s ease;
+    }
+    .progress-dot.active {
+      background-color: #fb7185;
+      transform: scale(1.2);
+    }
+    .typing-cursor::after {
+      content: '|';
+      animation: blink 1s infinite;
+      color: #fb7185;
+    }
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+    .shake {
+      animation: shake 0.5s ease-in-out;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+    .spoiler-text {
+      filter: blur(8px);
+      transition: filter 0.4s ease;
+      user-select: none;
+      cursor: pointer;
+    }
+    .spoiler-text.revealed {
+      filter: blur(0);
+      user-select: text;
+    }
+    .spoiler-hint {
+      font-size: 0.85rem;
+      color: #fb7185;
+      margin-bottom: 0.5rem;
+    }
+    .custom-player .waveform-bar {
+      width: 4px;
+      background: #fb7185;
+      border-radius: 2px;
+      animation: waveform 1s ease-in-out infinite;
+      transition: height 0.3s ease;
+    }
+    .custom-player .waveform-bar:nth-child(1) { height: 30%; animation-delay: 0s; }
+    .custom-player .waveform-bar:nth-child(2) { height: 55%; animation-delay: 0.2s; }
+    .custom-player .waveform-bar:nth-child(3) { height: 40%; animation-delay: 0.4s; }
+    .custom-player .waveform.playing .waveform-bar {
+      animation-play-state: running;
+    }
+    .custom-player .waveform:not(.playing) .waveform-bar {
+      animation-play-state: paused;
+    }
+    @keyframes waveform {
+      0%, 100% { transform: scaleY(1); }
+      50% { transform: scaleY(1.8); }
+    }
+    .custom-player .progress-container {
+      transition: height 0.2s ease;
+    }
+    .custom-player .progress-container:hover {
+      height: 0.5rem;
+    }
+    .custom-player .progress-fill {
+      transition: width 0.1s linear;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-3 sm:p-4 md:p-6 relative">
+  <!-- Floating hearts background -->
+  <div id="hearts" class="fixed inset-0 overflow-hidden"></div>
+
+  <main class="w-full max-w-5xl z-10 px-0 sm:px-2">
+    <!-- Progress -->
+    <div class="flex justify-center gap-2 mb-6" id="progress"></div>
+
+    <!-- Card -->
+    <div id="card" class="bg-white/80 backdrop-blur-md rounded-2xl sm:rounded-3xl shadow-2xl p-5 sm:p-8 md:p-12 lg:p-16 min-h-[82vh] sm:min-h-[85vh] md:min-h-[88vh] flex flex-col justify-center card-enter border border-white/50 relative overflow-hidden">
+      <!-- Chapter badge -->
+      <div class="flex justify-between items-center mb-6">
+        <span id="chapter-badge" class="inline-block px-3 sm:px-5 py-1.5 sm:py-2 rounded-full bg-rose-100 text-rose-600 text-sm sm:text-base font-medium">บทนำ</span>
+        <span id="page-number" class="text-rose-300 text-sm sm:text-base font-medium">1 / 6</span>
+      </div>
+
+      <!-- Content -->
+      <h1 id="title" class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-semibold text-rose-700 mb-6 sm:mb-8 leading-relaxed"></h1>
+      <div id="content" class="text-lg sm:text-xl md:text-2xl text-slate-700 leading-relaxed space-y-4 sm:space-y-6 mb-8 sm:mb-10"></div>
+
+      <!-- Navigation -->
+      <div id="nav" class="flex justify-between items-center">
+        <button id="prev-btn" class="px-4 sm:px-6 py-2 rounded-full text-sm sm:text-base text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition font-medium disabled:opacity-30 disabled:cursor-not-allowed">
+          ← ย้อนกลับ
+        </button>
+        <button id="next-btn" class="px-5 sm:px-8 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-rose-400 to-rose-500 text-white text-sm sm:text-base font-medium shadow-lg hover:from-rose-500 hover:to-rose-600 transition transform hover:scale-105">
+          ถัดไป →
+        </button>
+      </div>
+
+      <!-- Question choices (final chapter) -->
+      <div id="choices" class="hidden space-y-4">
+        <p class="text-rose-600 font-medium text-lg sm:text-xl md:text-2xl mb-4 sm:mb-6 text-center">บีมสบายใจตอบอะไรก็ได้นะ</p>
+        <div class="grid gap-3"></div>
+
+        <!-- Message box for Bheem -->
+        <div id="message-box" class="mt-6 pt-6 border-t border-rose-100 space-y-4">
+          <p class="text-rose-500 font-medium text-base sm:text-lg text-center">หรือจะฝากข้อความถึงเราก็ได้นะ 💌</p>
+          <textarea id="message-input" rows="3" class="w-full px-4 sm:px-6 py-3 rounded-2xl border-2 border-rose-200 bg-white text-rose-700 placeholder-rose-300 focus:outline-none focus:border-rose-400 resize-none text-base sm:text-lg" placeholder="พิมพ์ข้อความที่อยากบอกเรา..."></textarea>
+          <button id="send-message-btn" class="w-full px-6 py-3 rounded-full bg-gradient-to-r from-rose-400 to-rose-500 text-white font-medium shadow-lg hover:from-rose-500 hover:to-rose-600 transition transform hover:scale-105">ส่งข้อความ</button>
+        </div>
+      </div>
+
+      <!-- Response after choice -->
+      <div id="response" class="hidden mt-6 sm:mt-8 text-center p-4 sm:p-6 rounded-2xl bg-rose-50/80 border border-rose-100"></div>
+
+      <!-- Modal for busy button -->
+      <div id="busy-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div id="busy-modal-box" class="bg-white rounded-3xl p-8 sm:p-12 max-w-md w-full text-center shadow-2xl relative overflow-hidden opacity-0 scale-90 transition-all duration-500 ease-out">
+          <div class="text-5xl sm:text-6xl mb-4">🥺</div>
+          <p class="text-3xl sm:text-4xl md:text-5xl font-semibold text-rose-700 mb-2 leading-relaxed">ห่างกันพอแล้ว</p>
+          <p class="text-xl sm:text-2xl md:text-3xl text-rose-500 mb-8 sm:mb-10">กลับมาได้รึยังครับ</p>
+          <div class="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
+            <button class="close-modal-btn px-4 sm:px-6 py-2 sm:py-2.5 rounded-full bg-gradient-to-r from-rose-400 to-rose-500 text-white text-sm sm:text-base font-medium shadow-lg hover:from-rose-500 hover:to-rose-600 transition transform hover:scale-105">ได้</button>
+            <button class="close-modal-btn dodge-modal-btn px-4 sm:px-6 py-2 sm:py-2.5 rounded-full bg-rose-100 border-2 border-rose-200 text-rose-700 text-sm sm:text-base font-medium shadow-lg hover:bg-rose-200 transition transform hover:scale-105">ไม่ได้</button>
+          </div>
+          <p class="text-xs text-rose-300 mt-6">* ปุ่มหนีนะ จับให้ได้</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <p class="text-center text-rose-400/70 text-xs sm:text-sm mt-4 sm:mt-6">เขียนด้วยใจจริง ๆ 💌</p>
+  </main>
+
+  <script>
+    const chapters = [
+      {
+        badge: "Chapter 1",
+        title: "ทักมาทำไมตอนนี้",
+        paragraphs: [
+          "บีม… ตอนแรกเรากะจะรอให้เรียนจบก่อนค่อยทักไป แต่ช่วงนี้พ่อ พี่ และคนในครอบครัวถามถึงบีมบ่อยมาก (โดยเฉพาะพ่อ โครตยากเจอเธอเลย แต่ถามถึงบีมบ่อยมาก ๆ) บวกกับเราก็คิดถึงบีมด้วย เลยตัดสินใจทักมาวันนี้",
+          "ตลอด 3 เดือนที่เราห่างกัน เราคิดถึงบีมมาก ๆ 💕"
+        ]
+      },
+      {
+        badge: "Chapter 2",
+        title: "ขอโทษที่เคยงี่เง่า",
+        paragraphs: [
+          "พอได้มีเวลาทบทวนตัวเอง เราก็เข้าใจว่าหลายอย่างที่เราทำในตอนนั้น ทำให้บีมเสียใจ",
+          "เราอยากขอโทษจากใจจริง และยอมรับว่าตอนนั้นเราควรรับมือกับทุกอย่างให้ดีกว่านั้น",
+          "เรามีข้อความฝากไว้ให้บีมฟัง จะฟังก็ได้ ไม่ฟังก็ได้นะ มันเป็นเหตุผลจริง ๆ ที่เราไม่เคยบอกเธอ"
+        ],
+        audio: "./Beam.mp3"
+      },
+      {
+        badge: "Chapter 3",
+        title: "ขอบคุณที่มีบีม",
+        paragraphs: [
+          "ขอบคุณบีมนะ ที่เคยเข้ามาเป็นส่วนหนึ่งในชีวิตเรา การมีเธออยู่ในชีวิตมันดีมาก ๆ เลย",
+          "บีมทำให้เรารู้สึกว่าความรักมันสวยงามจริง ๆ เราโชคดีมากที่ได้รู้จักและได้มีเธอ ไม่ว่าตอนนี้จะเป็นยังไง เราก็ไม่เคยลืมความทรงจำเวลาอยู่กับบีมเลย 💛"
+        ],
+        spoiler: "เรารักบีมนะ ขอโทษที่บอกในวันที่สายเกินไป"
+      }
+    ];
+
+    const finalQuestion = {
+      badge: "Final Chapter",
+      title: "ถ้าบีมสบายใจ",
+      paragraphs: [
+        "ขอบคุณที่อ่านจนจบนะ แค่อยากทักถามสบายดีไหม",
+        "ถ้าบีมว่าง วันที่ 8 หรือ 11 บีมสบายใจคุยกันรึยัง? ไม่ต้องคิดอะไรมาก ค่อย ๆ ตอบก็ได้"
+      ],
+      choices: [
+        {
+          text: "ว่างวันที่ 8 🗓️",
+          response: "ดีใจมาก ๆ เลย 💕 ที่บีมว่าง ขอบคุณที่ตอบนะ เราคิดถึงบีมตลอด"
+        },
+        {
+          text: "ว่างวันที่ 11 🗓️",
+          response: "ดีใจมาก ๆ 🤍 บีมว่างวันที่ 11 เราขอทัก DM ไปคุยกันได้ไหม"
+        },
+        {
+          text: "ช่วงนี้งานยุ่ง ขอดูก่อน 🌙",
+          response: "เป็นกำลังใจให้เสมอนะ 💛 งานเยอะแค่ไหนก็สู้ ๆ ไม่ต้องรีบ ค่อย ๆ จัดการก่อน เราจะรอตรงนี้ไม่ไปไหน"
+        }
+      ]
+    };
+
+    let current = 0;
+    let isFinal = false;
+
+    const titleEl = document.getElementById('title');
+    const contentEl = document.getElementById('content');
+    const badgeEl = document.getElementById('chapter-badge');
+    const pageEl = document.getElementById('page-number');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const choicesEl = document.getElementById('choices');
+    const choicesGrid = choicesEl.querySelector('div');
+    const responseEl = document.getElementById('response');
+    const busyModal = document.getElementById('busy-modal');
+    const busyModalBox = document.getElementById('busy-modal-box');
+    const closeModalBtns = busyModal.querySelectorAll('.close-modal-btn');
+    const dodgeModalBtns = busyModal.querySelectorAll('.dodge-modal-btn');
+    const progressEl = document.getElementById('progress');
+    const cardEl = document.getElementById('card');
+    const messageInput = document.getElementById('message-input');
+    const sendMessageBtn = document.getElementById('send-message-btn');
+    const messageBox = document.getElementById('message-box');
+
+    const DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1523503874328105181/qFd4HiVgNpSDt8U5Bcf9xH67epWm49NaK-jkPWr7fndTvYf02MPy1vcg3tYpmRFCLM4X';
+
+    function getCurrentStatus() {
+      if (choicesEl && !choicesEl.classList.contains('hidden')) {
+        return 'หน้าเลือกคำตอบ';
+      }
+      if (responseEl && !responseEl.classList.contains('hidden')) {
+        return 'หน้าแสดงคำตอบ';
+      }
+      if (isFinal) {
+        return `Final Chapter: ${finalQuestion.title}`;
+      }
+      return `Chapter ${current + 1}: ${chapters[current].title}`;
+    }
+
+    async function sendToDiscord(title, fields) {
+      try {
+        const allFields = [
+          { name: 'สถานะ', value: getCurrentStatus(), inline: true },
+          ...(fields || [])
+        ];
+        const payload = {
+          username: 'Bheem Bot',
+          avatar_url: 'https://cdn-icons-png.flaticon.com/512/833/833472.png',
+          embeds: [{
+            title: title,
+            color: 0xf43f5e,
+            fields: allFields,
+            timestamp: new Date().toISOString(),
+            footer: { text: 'sorry.html' }
+          }]
+        };
+        await fetch(DISCORD_WEBHOOK, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (err) {
+        console.error('Discord webhook failed:', err);
+      }
+    }
+
+    function renderProgress() {
+      const total = chapters.length + 1;
+      progressEl.innerHTML = '';
+      for (let i = 0; i < total; i++) {
+        const dot = document.createElement('div');
+        dot.className = `progress-dot w-3 h-3 rounded-full ${i <= current ? 'active' : 'bg-rose-200'}`;
+        progressEl.appendChild(dot);
+      }
+    }
+
+
+    function withTransition(updateFn, direction = 'next') {
+      const slideClass = direction === 'prev' ? 'slide-prev' : 'slide-next';
+      cardEl.classList.add('fade-out', slideClass);
+      setTimeout(() => {
+        updateFn();
+        requestAnimationFrame(() => {
+          cardEl.classList.remove('fade-out', slideClass);
+        });
+      }, 800);
+    }
+
+    function renderChapterCore() {
+      choicesEl.classList.add('hidden');
+      responseEl.classList.add('hidden');
+      nav.classList.remove('hidden');
+
+      const chapter = chapters[current];
+      badgeEl.textContent = chapter.badge;
+      pageEl.textContent = `${current + 1} / ${chapters.length + 1}`;
+      titleEl.textContent = chapter.title;
+
+      contentEl.innerHTML = chapter.paragraphs.map(para => `<p>${para}</p>`).join('');
+
+      if (chapter.audio) {
+        const audioWrapper = document.createElement('div');
+        audioWrapper.className = 'mt-6 p-4 sm:p-5 bg-rose-50 rounded-2xl border border-rose-100';
+        audioWrapper.innerHTML = `
+          <p class="text-sm text-rose-500 mb-3 font-medium">🎧 คลิปเสียงจากเรา</p>
+          <div class="custom-player flex items-center gap-3 sm:gap-4">
+            <button class="play-btn flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-full bg-rose-500 text-white shadow-lg hover:bg-rose-600 transition transform hover:scale-105 active:scale-95" aria-label="เล่น">
+              <svg class="play-icon w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <svg class="pause-icon w-5 h-5 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+            <div class="waveform flex items-center gap-1 h-8">
+              <span class="waveform-bar"></span>
+              <span class="waveform-bar"></span>
+              <span class="waveform-bar"></span>
+            </div>
+            <div class="progress-container flex-1 h-2 bg-rose-200 rounded-full cursor-pointer relative overflow-hidden">
+              <div class="progress-fill h-full bg-rose-500 rounded-full w-0"></div>
+            </div>
+            <span class="time-display text-xs text-slate-500 font-mono w-20 text-right flex-shrink-0">0:00 / 0:00</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-3">*ใส่ไฟล์ Beam.mp3 ในโฟลเดอร์เดียวกับไฟล์นี้</p>
+          <audio class="hidden" src="${chapter.audio}" preload="metadata"></audio>
+        `;
+        contentEl.appendChild(audioWrapper);
+
+        const audio = audioWrapper.querySelector('audio');
+        const playBtn = audioWrapper.querySelector('.play-btn');
+        const playIcon = audioWrapper.querySelector('.play-icon');
+        const pauseIcon = audioWrapper.querySelector('.pause-icon');
+        const progressFill = audioWrapper.querySelector('.progress-fill');
+        const progressContainer = audioWrapper.querySelector('.progress-container');
+        const timeDisplay = audioWrapper.querySelector('.time-display');
+        const waveform = audioWrapper.querySelector('.waveform');
+
+        let audioLogged = false;
+
+        function formatTime(seconds) {
+          if (isNaN(seconds) || seconds === Infinity) return '0:00';
+          const mins = Math.floor(seconds / 60);
+          const secs = Math.floor(seconds % 60).toString().padStart(2, '0');
+          return `${mins}:${secs}`;
+        }
+
+        function updateTime() {
+          timeDisplay.textContent = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`;
+        }
+
+        playBtn.addEventListener('click', () => {
+          if (audio.paused) {
+            audio.play();
+          } else {
+            audio.pause();
+          }
+        });
+
+        audio.addEventListener('play', () => {
+          if (!audioLogged) {
+            audioLogged = true;
+            sendToDiscord('🎧 บีมกดฟังเสียง', [
+              { name: 'Chapter', value: `${current + 1}: ${chapter.title}`, inline: true }
+            ]);
+          }
+          playIcon.classList.add('hidden');
+          pauseIcon.classList.remove('hidden');
+          waveform.classList.add('playing');
+        });
+
+        audio.addEventListener('pause', () => {
+          playIcon.classList.remove('hidden');
+          pauseIcon.classList.add('hidden');
+          waveform.classList.remove('playing');
+        });
+
+        audio.addEventListener('timeupdate', () => {
+          const percent = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+          progressFill.style.width = `${percent}%`;
+          updateTime();
+        });
+
+        audio.addEventListener('loadedmetadata', updateTime);
+
+        audio.addEventListener('ended', () => {
+          playIcon.classList.remove('hidden');
+          pauseIcon.classList.add('hidden');
+          waveform.classList.remove('playing');
+        });
+
+        progressContainer.addEventListener('click', (e) => {
+          const rect = progressContainer.getBoundingClientRect();
+          const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+          if (audio.duration) {
+            audio.currentTime = percent * audio.duration;
+          }
+        });
+      }
+
+      if (chapter.spoiler) {
+        const spoilerBox = document.createElement('div');
+        spoilerBox.className = 'mt-6 p-6 bg-rose-50 rounded-2xl border-2 border-rose-200 text-center cursor-pointer';
+        spoilerBox.innerHTML = `
+          <p class="spoiler-hint">กดเพื่ออ่าน</p>
+          <p class="spoiler-text text-xl sm:text-2xl md:text-3xl font-medium text-rose-600">${chapter.spoiler}</p>
+        `;
+        spoilerBox.addEventListener('click', function() {
+          const text = this.querySelector('.spoiler-text');
+          const hint = this.querySelector('.spoiler-hint');
+          if (!text.classList.contains('revealed')) {
+            sendToDiscord('💖 บีมกดอ่านข้อความเซนเซอร์', [
+              { name: 'Chapter', value: `${current + 1}: ${chapter.title}`, inline: true },
+              { name: 'ข้อความ', value: chapter.spoiler, inline: false }
+            ]);
+          }
+          text.classList.add('revealed');
+          hint.textContent = '💖';
+        });
+        contentEl.appendChild(spoilerBox);
+      }
+
+      prevBtn.disabled = current === 0;
+      nextBtn.textContent = current === chapters.length - 1 ? 'ไปคำถามสุดท้าย →' : 'ถัดไป →';
+      renderProgress();
+    }
+
+    function renderChapter(animate = true, direction = 'next') {
+      if (animate) {
+        withTransition(renderChapterCore, direction);
+      } else {
+        renderChapterCore();
+      }
+    }
+
+    function renderFinalCore() {
+      isFinal = true;
+
+      choicesEl.classList.add('hidden');
+      responseEl.classList.add('hidden');
+      nav.classList.remove('hidden');
+
+      badgeEl.textContent = finalQuestion.badge;
+      pageEl.textContent = `${chapters.length + 1} / ${chapters.length + 1}`;
+      titleEl.textContent = finalQuestion.title;
+
+      contentEl.innerHTML = finalQuestion.paragraphs.map(para => `<p>${para}</p>`).join('');
+
+      prevBtn.disabled = false;
+      nextBtn.textContent = 'ดูคำถาม →';
+      renderProgress();
+    }
+
+    function renderFinal(animate = true, direction = 'next') {
+      if (animate) {
+        withTransition(renderFinalCore, direction);
+      } else {
+        renderFinalCore();
+      }
+    }
+
+    function showChoices() {
+      withTransition(() => {
+        nav.classList.add('hidden');
+        choicesEl.classList.remove('hidden');
+        responseEl.classList.add('hidden');
+        choicesGrid.innerHTML = '';
+
+        let dodgeAttempts = 0;
+
+        finalQuestion.choices.forEach((choice, index) => {
+          const btn = document.createElement('button');
+          btn.className = 'btn-choice w-full text-left px-4 sm:px-6 py-3 sm:py-4 rounded-2xl bg-white border-2 border-rose-200 text-rose-700 font-medium text-base sm:text-lg hover:bg-rose-50 hover:border-rose-400';
+          btn.textContent = choice.text;
+          choicesGrid.appendChild(btn);
+
+          if (choice.text.includes('งานยุ่ง')) {
+            const placeholder = document.createElement('div');
+            placeholder.style.height = '60px';
+            choicesGrid.appendChild(placeholder);
+
+            btn.classList.remove('w-full');
+            btn.style.position = 'absolute';
+            btn.style.width = 'auto';
+            btn.style.minWidth = '220px';
+            btn.style.transition = 'all 0.3s ease';
+            btn.style.zIndex = '20';
+
+            const positionButton = () => {
+              const placeholderRect = placeholder.getBoundingClientRect();
+              const cardRect = cardEl.getBoundingClientRect();
+              const btnWidth = btn.offsetWidth || 220;
+              btn.style.left = `${placeholderRect.left - cardRect.left + (placeholderRect.width - btnWidth) / 2}px`;
+              btn.style.top = `${placeholderRect.top - cardRect.top}px`;
+              btn.style.bottom = 'auto';
+            };
+
+            requestAnimationFrame(() => {
+              requestAnimationFrame(positionButton);
+            });
+            window.addEventListener('resize', positionButton);
+
+            const moveButton = (e) => {
+              e.preventDefault();
+              if (dodgeAttempts >= 2) {
+                sendToDiscord('🌙 ปุ่มงานยุ่งหนีจนครบ 3 ครั้ง', [
+                  { name: 'สถานะ', value: 'Popup ขึ้น', inline: true }
+                ]);
+                showBusyModal();
+                return;
+              }
+              dodgeAttempts++;
+              sendToDiscord('🌙 พยายามกดปุ่มงานยุ่ง', [
+                { name: 'ครั้งที่', value: dodgeAttempts.toString(), inline: true }
+              ]);
+              const cardRect = cardEl.getBoundingClientRect();
+              const maxX = Math.max(20, cardRect.width - btn.offsetWidth - 40);
+              const maxY = Math.max(20, cardRect.height - btn.offsetHeight - 40);
+              const x = Math.random() * (maxX - 20) + 20;
+              const y = Math.random() * (maxY - 20) + 20;
+              btn.style.left = `${x}px`;
+              btn.style.bottom = 'auto';
+              btn.style.top = `${y}px`;
+              btn.style.transform = `rotate(${Math.random() * 10 - 5}deg)`;
+            };
+
+            btn.addEventListener('mouseenter', moveButton);
+            btn.addEventListener('touchstart', moveButton, { passive: false });
+            btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              sendToDiscord('🎯 จับปุ่มงานยุ่งคลิกได้', [
+                { name: 'ครั้งที่พยายาม', value: dodgeAttempts.toString(), inline: true }
+              ]);
+            });
+          } else {
+            btn.onclick = () => {
+              sendToDiscord('🗓️ บีมเลือกคำตอบ', [
+                { name: 'ปุ่ม', value: choice.text, inline: true },
+                { name: 'ข้อความตอบ', value: choice.response, inline: false }
+              ]);
+              showResponse(choice.response);
+            };
+          }
+        });
+      });
+    }
+
+    function showResponse(text) {
+      choicesGrid.classList.add('hidden');
+      messageBox.classList.add('hidden');
+
+      const existingResponse = choicesEl.querySelector('#choice-response');
+      if (existingResponse) existingResponse.remove();
+
+      const responseContainer = document.createElement('div');
+      responseContainer.id = 'choice-response';
+      responseContainer.className = 'text-center space-y-6';
+      responseContainer.innerHTML = `
+        <p class="text-lg sm:text-xl text-slate-700 leading-relaxed">${text}</p>
+        <button id="back-to-choices-2" class="px-6 py-2 rounded-full bg-rose-500 text-white text-sm font-medium shadow hover:bg-rose-600 transition">เลือกคำตอบอื่น</button>
+      `;
+      choicesEl.appendChild(responseContainer);
+
+      document.getElementById('back-to-choices-2').addEventListener('click', () => {
+        sendToDiscord('🔄 กลับไปเลือกคำตอบอื่น');
+        responseContainer.remove();
+        choicesGrid.classList.remove('hidden');
+        messageBox.classList.remove('hidden');
+      });
+
+      createHearts(6);
+    }
+
+    function showBusyModal() {
+      busyModal.classList.remove('hidden');
+      busyModalBox.classList.add('opacity-0', 'scale-90');
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          busyModalBox.classList.remove('opacity-0', 'scale-90');
+        });
+      });
+      dodgeModalBtns.forEach((btn) => {
+        btn.style.position = 'absolute';
+        btn.style.transition = 'all 1.2s ease-out';
+        btn.style.left = 'auto';
+        btn.style.top = 'auto';
+        btn.style.right = 'auto';
+        btn.style.bottom = 'auto';
+        btn.style.transform = 'none';
+
+        const boxWidth = busyModalBox.offsetWidth;
+        const boxHeight = busyModalBox.offsetHeight;
+        const btnWidth = btn.offsetWidth;
+        const btnHeight = btn.offsetHeight;
+        btn.style.left = `${boxWidth - btnWidth - 20}px`;
+        btn.style.top = `${boxHeight - btnHeight - 20}px`;
+      });
+    }
+
+    function closeBusyModal(text) {
+      busyModalBox.classList.add('opacity-0', 'scale-90');
+      setTimeout(() => {
+        busyModal.classList.add('hidden');
+        choicesEl.classList.add('hidden');
+        responseEl.classList.remove('hidden');
+        responseEl.innerHTML = `
+          <p class="text-xl sm:text-2xl text-slate-700 leading-relaxed mb-6">${text}</p>
+          <button id="back-to-choices" class="px-6 py-2 rounded-full bg-rose-500 text-white text-sm font-medium shadow hover:bg-rose-600 transition">เลือกคำตอบต่อ</button>
+        `;
+        document.getElementById('back-to-choices').addEventListener('click', () => {
+          sendToDiscord('🔄 กลับไปเลือกคำตอบจาก popup');
+          responseEl.classList.add('hidden');
+          showChoices();
+        });
+        createHearts(8);
+      }, 500);
+    }
+
+    dodgeModalBtns.forEach((btn) => {
+      let modalDodgeAttempts = 0;
+      const moveBtn = (e) => {
+        e.preventDefault();
+        modalDodgeAttempts++;
+        sendToDiscord('🚫 ปุ่ม "ไม่ได้" หนีใน popup', [
+          { name: 'ครั้งที่', value: modalDodgeAttempts.toString(), inline: true }
+        ]);
+        const boxRect = busyModalBox.getBoundingClientRect();
+        const btnRect = btn.getBoundingClientRect();
+        const maxX = boxRect.width - btnRect.width - 20;
+        const maxY = boxRect.height - btnRect.height - 20;
+        const x = Math.random() * maxX + 10;
+        const y = Math.random() * maxY + 10;
+        btn.style.left = `${x}px`;
+        btn.style.top = `${y}px`;
+        btn.style.right = 'auto';
+        btn.style.bottom = 'auto';
+        btn.style.transform = `rotate(${Math.random() * 8 - 4}deg)`;
+      };
+      btn.addEventListener('mouseenter', moveBtn);
+      btn.addEventListener('touchstart', moveBtn, { passive: false });
+      btn.addEventListener('click', () => {
+        sendToDiscord('🚫 บีมกด "ไม่ได้"', [
+          { name: 'พยายามจับปุ่ม', value: modalDodgeAttempts.toString(), inline: true }
+        ]);
+        closeBusyModal('😢');
+      });
+    });
+
+    closeModalBtns.forEach((btn) => {
+      if (!btn.classList.contains('dodge-modal-btn')) {
+        btn.addEventListener('click', () => {
+          sendToDiscord('✅ บีมกด "ได้"');
+          closeBusyModal('💕');
+        });
+      }
+    });
+
+    nextBtn.addEventListener('click', () => {
+      if (isFinal) {
+        sendToDiscord('➡️ เปิดตัวเลือกคำตอบ');
+        showChoices();
+        return;
+      }
+      if (current < chapters.length - 1) {
+        current++;
+        sendToDiscord('➡️ ไป Chapter ถัดไป', [
+          { name: 'Chapter', value: `${current + 1}: ${chapters[current].title}`, inline: true }
+        ]);
+        renderChapter();
+      } else {
+        sendToDiscord('➡️ ไป Final Chapter');
+        renderFinal();
+      }
+    });
+
+    prevBtn.addEventListener('click', () => {
+      if (isFinal) {
+        isFinal = false;
+        current = chapters.length - 1;
+        sendToDiscord('⬅️ ย้อนกลับจาก Final Chapter');
+        renderChapter(true, 'prev');
+      } else if (current > 0) {
+        current--;
+        sendToDiscord('⬅️ ย้อนกลับ Chapter', [
+          { name: 'Chapter', value: `${current + 1}: ${chapters[current].title}`, inline: true }
+        ]);
+        renderChapter(true, 'prev');
+      }
+    });
+
+    sendMessageBtn.addEventListener('click', () => {
+      const message = messageInput.value.trim();
+      if (!message) return;
+
+      sendToDiscord('💌 บีมฝากข้อความ', [
+        { name: 'ข้อความ', value: message, inline: false }
+      ]);
+
+      choicesEl.classList.add('hidden');
+      responseEl.classList.remove('hidden');
+      responseEl.innerHTML = `
+        <p class="text-lg sm:text-xl text-slate-700 leading-relaxed mb-6">ขอบคุณที่ฝากข้อความมานะ 💕<br>เราจะรีบอ่าน</p>
+        <button id="back-to-choices-3" class="px-6 py-2 rounded-full bg-rose-500 text-white text-sm font-medium shadow hover:bg-rose-600 transition">เลือกคำตอบต่อ</button>
+      `;
+      document.getElementById('back-to-choices-3').addEventListener('click', () => {
+        sendToDiscord('🔄 กลับไปเลือกคำตอบจากข้อความ');
+        responseEl.classList.add('hidden');
+        showChoices();
+      });
+      createHearts(8);
+      messageInput.value = '';
+    });
+
+    function createHearts(count = 15) {
+      const heartsContainer = document.getElementById('hearts');
+      for (let i = 0; i < count; i++) {
+        const heart = document.createElement('div');
+        heart.className = 'floating-heart';
+        heart.textContent = ['🤍', '💗', '💛', '🌸', '💌'][Math.floor(Math.random() * 5)];
+        heart.style.left = Math.random() * 100 + 'vw';
+        heart.style.animationDuration = (4 + Math.random() * 6) + 's';
+        heart.style.animationDelay = Math.random() * 5 + 's';
+        heartsContainer.appendChild(heart);
+        setTimeout(() => heart.remove(), 10000);
+      }
+    }
+
+    setInterval(() => createHearts(1), 6000);
+    createHearts(6);
+    renderChapter(false);
+
+    sendToDiscord('🌐 เปิดหน้า sorry.html', [
+      { name: 'User Agent', value: navigator.userAgent.substring(0, 200), inline: false }
+    ]);
+  </script>
+</body>
+</html>
